@@ -5,13 +5,16 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
+  release:
+    types: [created]
 
 env:
   SOLUTION_FILE_PATH: RavenfieldLuaEditor.sln
   BUILD_CONFIGURATION: Release
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -28,3 +31,34 @@ jobs:
 
     - name: Build
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Create ZIP of Release build
+      run: |
+        mkdir artifact
+        Compress-Archive -Path bin\Release\* -DestinationPath artifact\RavenfieldLuaEditor.zip
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: RavenfieldLuaEditor
+        path: artifact/RavenfieldLuaEditor.zip
+        retention-days: 7
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download Build Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: RavenfieldLuaEditor
+        path: artifact
+
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v2
+      with:
+        files: artifact/RavenfieldLuaEditor.zip
